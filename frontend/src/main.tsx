@@ -4,7 +4,7 @@ import { ChevronRight, Hotel, Menu, Plus, Send, Wifi, Trash2 } from 'lucide-reac
 import { AvailabilityForm } from './AvailabilityForm';
 import './styles.css';
 
-const API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+const API = 'https://hospira-ai-ai-powered-hospitality.onrender.com/api/v1';
 const SESSION_KEY = 'hospira_anonymous_session';
 const getSessionId = () => { const existing = localStorage.getItem(SESSION_KEY); if (existing) return existing; const created = `${crypto.randomUUID()}-${crypto.randomUUID()}`; localStorage.setItem(SESSION_KEY, created); return created; };
 type Msg = { role: string; content: string }; type Chat = { id: string; title: string };
