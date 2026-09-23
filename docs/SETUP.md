@@ -1,6 +1,8 @@
 # Setup
 
-Copy `.env.example` to `.env`. The frontend requires `VITE_API_BASE_URL`, `VITE_SUPABASE_URL`, and `VITE_SUPABASE_ANON_KEY`. The backend requires `DATABASE_URL`, `SUPABASE_JWT_SECRET` in production, `CORS_ORIGINS`, and a secure `SECRET_KEY`. Add `GROQ_API_KEY` and `GROQ_MODEL` to enable live Groq responses. Groq and service-role secrets must never be placed in frontend variables.
+Hospira AI is currently a public demo. It does not require login, registration, email confirmation, Supabase Auth, or frontend account configuration.
+
+Copy `.env.example` to `.env`. The frontend requires only `VITE_API_BASE_URL` (or uses `http://localhost:8000/api/v1` by default). The backend requires `DATABASE_URL`, `CORS_ORIGINS`, and optionally `GROQ_API_KEY` and `GROQ_MODEL`. Keep `SECRET_KEY`, database credentials, and Groq keys server-side; never put them in `VITE_` variables.
 
 ## Local run
 
@@ -20,12 +22,12 @@ npm install
 npm run dev
 ```
 
-Open `/login`, register with Supabase Auth, and then use the protected chat route. The backend's safe grounded fallback works without a Groq key for local tests.
+Open `http://localhost:5173/`. The assistant loads directly at the root route.
 
-## Migrations
+## Anonymous session behavior
 
-For a clean local migration test, run `DATABASE_URL=sqlite:///./migration-test.db alembic upgrade head` from the repository root. For production, set `DATABASE_URL` to the Supabase PostgreSQL connection string and run `alembic upgrade head` before starting Uvicorn. PostgreSQL URLs are converted to SQLAlchemy's asyncpg driver by the application engine.
+The frontend creates a random browser-local ID and sends it in `X-Anonymous-Session`. This scopes conversation history and memories without pretending the visitor is authenticated. Clearing local storage, using another browser profile, or using another device starts a new demo scope. This provides convenience and basic separation, not account-grade security or privacy.
 
-## Deployment
+## Database and deployment
 
-Deploy `frontend` to Vercel with the three `VITE_` values. Deploy `backend` to Render with the PostgreSQL URL, Supabase JWT secret, Groq values, CORS origin, and `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Do not claim the application is live until both health and authenticated flows are verified in the deployed environments.
+Local development uses SQLite. For deployment, set `DATABASE_URL` to a Supabase PostgreSQL connection string and run `alembic upgrade head` from the repository root. Deploy the frontend with `VITE_API_BASE_URL`; deploy the backend with `DATABASE_URL`, `GROQ_API_KEY`, `GROQ_MODEL`, `CORS_ORIGINS`, and a secure `SECRET_KEY`.

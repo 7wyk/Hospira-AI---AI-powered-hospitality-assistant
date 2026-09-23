@@ -1,15 +1,41 @@
 from datetime import date
+import pytest
 from fastapi.testclient import TestClient
 from app.ai import fallback_answer
 from app.main import app
 from app.services import search_availability, summarize_context
 
-def test_health():
-    response = TestClient(app).get('/api/v1/health')
-    assert response.status_code == 200 and response.json()['status'] == 'ok'
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
-def test_unauthorized_protected_route():
-    assert TestClient(app).get('/api/v1/conversations').status_code == 401
+def headers(session: str = "browser-session-a-123456"):
+    return {"X-Anonymous-Session": session}
+
+def test_health_is_public(client):
+    response = client.get('/api/v1/health')
+    assert response.status_code == 200 and response.json()['mode'] == 'public-demo'
+
+def test_conversation_list_is_public_with_anonymous_scope(client):
+    response = client.get('/api/v1/conversations', headers=headers())
+    assert response.status_code == 200
+
+def test_anonymous_sessions_are_isolated(client):
+    first = client.post('/api/v1/conversations', headers=headers('browser-a-123456'), json={'title': 'A session'})
+    assert first.status_code == 200
+    conversation_id = first.json()['id']
+    other = client.get(f'/api/v1/conversations/{conversation_id}', headers=headers('browser-b-123456'))
+    assert other.status_code == 404
+
+def test_public_chat_persists_with_session_scope(client):
+    response = client.post('/api/v1/chat/message', headers=headers('chat-session-123456'), json={'message': 'Tell me about the Premium Room'})
+    assert response.status_code == 200
+    assert response.json()['structured']['room_id'] == 'premium-room'
+
+def test_availability_is_public(client):
+    response = client.post('/api/v1/availability/search', json={'check_in': '2026-10-01', 'check_out': '2026-10-04', 'guests': 2})
+    assert response.status_code == 200
 
 def test_grounded_premium_room():
     result = fallback_answer('Tell me about the Premium Room', [])
