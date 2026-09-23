@@ -1,9 +1,9 @@
 from datetime import date, datetime
-from typing import Literal, Any
-from pydantic import BaseModel, Field, ConfigDict
+from typing import Any
+from pydantic import BaseModel, ConfigDict, Field
 
 class ConversationCreate(BaseModel): title: str = "New chat"
-class ConversationPatch(BaseModel): title: str | None = None
+class ConversationPatch(BaseModel): title: str | None = Field(default=None, min_length=1, max_length=200)
 class ConversationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str; title: str; summary: str | None; active_room_id: str | None; active_intent: str | None; created_at: datetime; updated_at: datetime
@@ -13,7 +13,7 @@ class MessageOut(BaseModel):
 class ConversationDetail(ConversationOut): messages: list[MessageOut]
 class ChatRequest(BaseModel): conversation_id: str | None = None; message: str = Field(min_length=1, max_length=4000)
 class AIResponse(BaseModel):
-    intent: str; confidence: float = Field(ge=0, le=1); room_id: str | None = None; room_name: str | None = None; guest_count: int | None = None; requires_clarification: bool = False; answer_basis: list[str] = []; response: str; memory_candidates: list[dict[str, Any]] = []
+    intent: str; confidence: float = Field(ge=0, le=1); room_id: str | None = None; room_name: str | None = None; guest_count: int | None = None; check_in: date | None = None; check_out: date | None = None; requires_clarification: bool = False; answer_basis: list[str] = []; memory_candidates: list[dict[str, Any]] = []; response: str
 class ChatResponse(BaseModel): conversation_id: str; message_id: str; assistant_message: str; structured: AIResponse; referenced_room: dict | None = None
 class MemoryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
