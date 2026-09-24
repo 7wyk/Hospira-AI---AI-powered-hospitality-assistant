@@ -1,18 +1,25 @@
-HOTEL = {
- "name": "Aurelia Hotel", "check_in": "3:00 PM", "check_out": "11:00 AM", "reception": "24 hours",
- "breakfast": "Daily 7:00–10:30 AM in the Garden Room; included with Aurelia Suite stays.",
- "pool": "Heated indoor pool open 6:00 AM–10:00 PM.", "wifi": "Complimentary high-speed Wi-Fi throughout the hotel.",
- "parking": "On-site parking is available for $18 per night.", "accessibility": "Accessible rooms and step-free public access are available on request.",
- "luggage": "Complimentary luggage storage is available before check-in and after check-out.",
- "policies": "Check-in requires a photo ID. No smoking indoors. Demo information only; no real booking is made."
-}
-ROOMS = [
- {"id":"standard-room","name":"Standard Room","description":"A comfortable, efficient room for short city stays.","capacity":2,"beds":"1 queen bed","amenities":["Wi-Fi","work desk","walk-in shower"],"price_per_night":129,"inventory":8,"suitable_for":["solo travelers","couples"]},
- {"id":"deluxe-room","name":"Deluxe Room","description":"A brighter room with more space and a city view.","capacity":2,"beds":"1 king bed","amenities":["Wi-Fi","city view","armchair","walk-in shower"],"price_per_night":179,"inventory":5,"suitable_for":["couples","business travelers"]},
- {"id":"premium-room","name":"Premium Room","description":"A quiet, spacious room with upgraded amenities and a garden outlook.","capacity":2,"beds":"1 king bed","amenities":["Wi-Fi","garden view","Nespresso machine","soaking tub"],"price_per_night":239,"inventory":3,"suitable_for":["couples","quiet stays"]},
- {"id":"family-room","name":"Family Room","description":"A flexible room designed for families and small groups.","capacity":4,"beds":"1 king bed and 2 twin beds","amenities":["Wi-Fi","sofa bed","mini fridge","two bathrooms"],"price_per_night":269,"inventory":4,"suitable_for":["families","small groups"]},
- {"id":"aurelia-suite","name":"Aurelia Suite","description":"Our most spacious suite with a separate sitting area.","capacity":3,"beds":"1 king bed and sofa bed","amenities":["Wi-Fi","separate lounge","bathtub","complimentary breakfast"],"price_per_night":389,"inventory":2,"suitable_for":["special occasions","longer stays"]}
-]
+"""Authoritative, versioned knowledge for the fictional demo hotel."""
+import json
+from pathlib import Path
+from typing import Any
 
-def room_by_id(room_id): return next((r for r in ROOMS if r["id"] == room_id), None)
-def search_rooms(guests=1): return [r for r in ROOMS if r["capacity"] >= guests]
+_PATH = Path(__file__).resolve().parents[1] / "data" / "hotel_knowledge.json"
+
+def load_knowledge() -> dict[str, Any]:
+    data = json.loads(_PATH.read_text(encoding="utf-8"))
+    room_ids = [room.get("id") for room in data.get("rooms", [])]
+    if len(room_ids) != len(set(room_ids)) or any(not room.get("id") or not room.get("name") or room.get("capacity", 0) < 1 or room.get("price_per_night", 0) < 0 for room in data.get("rooms", [])):
+        raise ValueError("Malformed hotel knowledge: rooms require unique IDs, names, capacity, and price")
+    if any(not key or not value for key, value in data.get("faqs", {}).items()) or any(not key or not value for key, value in data["property"]["policies"].items()):
+        raise ValueError("Malformed hotel knowledge: FAQ and policy keys require answers")
+    return data
+
+KNOWLEDGE = load_knowledge()
+HOTEL = KNOWLEDGE["property"]
+ROOMS = KNOWLEDGE["rooms"]
+
+def room_by_id(room_id: str | None) -> dict[str, Any] | None:
+    return next((room for room in ROOMS if room["id"] == room_id), None)
+
+def search_rooms(guests: int = 1) -> list[dict[str, Any]]:
+    return [room for room in ROOMS if room["capacity"] >= guests]

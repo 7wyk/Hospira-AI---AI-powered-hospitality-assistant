@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-only-change-me"
     database_url: str = "sqlite+aiosqlite:///./hospira.db"
     groq_api_key: str | None = None
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "openai/gpt-oss-20b"
     cors_origins: str = "http://localhost:5173"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from app.ai import fallback_answer
 from app.main import app
 from app.services import search_availability, summarize_context
+from app.knowledge import HOTEL, ROOMS
 
 @pytest.fixture(scope="module")
 def client():
@@ -68,3 +69,39 @@ def test_invalid_availability():
         assert False
     except Exception as error:
         assert 'after' in str(error)
+
+def test_check_in_and_pool_are_grounded():
+    assert '3:00 PM' in fallback_answer('What time is check-in?', []).response
+    pool = fallback_answer('Does the hotel have a swimming pool?', []).response
+    assert 'Yes' in pool and '6:00 AM' in pool and '10:00 PM' in pool
+
+def test_three_guest_reasoning_excludes_two_person_rooms():
+    result = fallback_answer('Which room is suitable for three guests?', [])
+    assert 'Family Room' in result.response and 'Aurelia Suite' in result.response
+    assert 'Standard Room' not in result.response and 'Premium Room' not in result.response
+
+def test_price_respects_requested_occupancy():
+    result = fallback_answer('price for 3 guests in standard room?', [])
+    assert 'not suitable for 3' in result.response and 'Family Room' in result.response
+
+def test_breakfast_and_cancellation_are_from_knowledge():
+    assert 'Aurelia Suite' in fallback_answer('Is breakfast included?', []).response
+    assert HOTEL['policies']['cancellation'] == fallback_answer('What is the cancellation policy?', []).response
+
+def test_chat_availability_executes_tool():
+    result = fallback_answer('Do you have rooms available for 2 guests from 2026-10-01 to 2026-10-04?', [])
+    assert result.intent == 'availability' and 'demo availability shows' in result.response
+
+def test_follow_up_recalculates_capacity():
+    first = fallback_answer('Which room is best for 2 people?', [])
+    second = fallback_answer('What about 3 people?', [], first.room_id, [('user', 'Which room is best for 2 people?')])
+    assert second.intent == 'room_recommendation' and 'Standard Room' not in second.response
+
+def test_comparison_uses_known_attributes():
+    result = fallback_answer('Compare Premium and Deluxe.', [])
+    assert result.intent == 'room_comparison' and 'Premium Room' in result.response and 'Deluxe Room' in result.response
+
+def test_knowledge_has_required_stable_data():
+    assert len({r['id'] for r in ROOMS}) == len(ROOMS)
+    assert all(r['id'] and r['name'] and r['capacity'] > 0 and r['price_per_night'] >= 0 for r in ROOMS)
+    assert all(key and answer for key, answer in HOTEL['policies'].items())
