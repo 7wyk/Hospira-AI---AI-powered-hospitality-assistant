@@ -16,6 +16,9 @@ def _guests(text, memories):
         return {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}[word_match.group(1)]
     return next((m.get("value_json", {}).get("guests") for m in memories if m.get("memory_type") == "guest_count"), None)
 
+def _has_explicit_guest_count(text):
+    return bool(re.search(r"\b(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s*(?:adults?|people|guests?|persons?)\b", text.lower()))
+
 def _dates(text):
     values = re.findall(r"\b(\d{4}-\d{2}-\d{2})\b", text)
     try:
@@ -46,6 +49,7 @@ def _alternatives(guests): return ", ".join(f"{r['name']} (up to {r['capacity']}
 
 def fallback_answer(text, memories, active_room=None, recent=None):
     recent = recent or []; low = text.lower().strip(); guests = _guests(text, memories); check_in, check_out = _dates(text)
+    explicit_guests = _has_explicit_guest_count(text)
     found = _rooms_in(text, active_room, recent); room = found[0] if found else None
     if not room:
         ids = [m.get("value_json", {}).get("room_id") for m in memories if m.get("memory_type") == "room_interest"]
@@ -76,8 +80,8 @@ def fallback_answer(text, memories, active_room=None, recent=None):
         if guests and guests > room["capacity"]:
             return _reply("room_price", f"The {room['name']} is ${room['price_per_night']} per night, but it accommodates up to {room['capacity']} guests, so it is not suitable for {guests}. Suitable options are {_alternatives(guests)}.", room, guests, basis=["hotel_knowledge", "room_reasoning"], memory=_room_memory(room)+guest_memory)
         return _reply("room_price", f"The illustrative rate for the {room['name']} is ${room['price_per_night']} per night for up to {room['capacity']} guests.", room, guests, memory=_room_memory(room)+guest_memory)
-    if any(x in low for x in ("recommend", "which room", "best room", "suggest", "suitable", "works for", "good for", "cheapest")) or (guests and low.startswith("what about")):
-        count = guests or 2; candidates = _fits(count)
+    if any(x in low for x in ("recommend", "which room", "best room", "suggest", "suitable", "works for", "good for", "cheapest")) or (explicit_guests and low.startswith(("what about", "for "))):
+        count = guests if explicit_guests else (4 if "family" in low else 2); candidates = _fits(count)
         if "cheapest" in low and candidates: candidates = [min(candidates, key=lambda r: r["price_per_night"])]
         if not candidates: return _reply("room_recommendation", f"I do not have a listed room that accommodates {count} guests.", guests=count)
         if "family" in low: candidates.sort(key=lambda r: ("families" not in r["suitable_for"], r["price_per_night"]))

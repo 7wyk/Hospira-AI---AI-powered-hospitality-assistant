@@ -97,6 +97,12 @@ def test_follow_up_recalculates_capacity():
     second = fallback_answer('What about 3 people?', [], first.room_id, [('user', 'Which room is best for 2 people?')])
     assert second.intent == 'room_recommendation' and 'Standard Room' not in second.response
 
+def test_family_request_ignores_stale_guest_memory_and_short_follow_up_reasons():
+    family = fallback_answer('Which room is best for a family?', [{'memory_type': 'guest_count', 'value_json': {'guests': 1}}])
+    assert family.guest_count == 4 and 'Family Room' in family.response and 'Standard Room' not in family.response
+    follow_up = fallback_answer('for 4 guests?', [], family.room_id, [('user', 'Which room is best for a family?')])
+    assert follow_up.intent == 'room_recommendation' and follow_up.guest_count == 4 and 'Family Room' in follow_up.response
+
 def test_comparison_uses_known_attributes():
     result = fallback_answer('Compare Premium and Deluxe.', [])
     assert result.intent == 'room_comparison' and 'Premium Room' in result.response and 'Deluxe Room' in result.response
